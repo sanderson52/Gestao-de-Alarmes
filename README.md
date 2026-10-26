@@ -1,4 +1,6 @@
-# Gestão de Alarmes Industriais e IHM de Alto Desempenho — Compressor C-101
+# AlarmFlow — Gestão de alarmes e IHM de alto desempenho (C-101)
+
+> Motor de racionalização de alarmes ISA-18.2 com IHM ISA-101
 
 **Disciplina:** COM8 · IUM/IHM — Projeto P2
 **Tecnologias:** Python 3.9+ (biblioteca padrão), HTML, CSS e JavaScript
@@ -22,7 +24,7 @@ alarmes críticos.
 
 ---
 
-## Entrega da P2
+## Entrega
 
 | Exigência | Atendimento |
 |---|---|
@@ -42,8 +44,8 @@ Python 3.9 ou superior ([python.org](https://www.python.org/downloads/)). No Win
 ### 2. Obter o projeto
 
 ```bash
-git clone https://github.com/BrunoSilveira100/gestao-de-alarmes-c101.git
-cd gestao-de-alarmes-c101/codigo
+git clone https://github.com/BrunoSilveira100/alarmflow-c101.git
+cd alarmflow-c101/codigo
 ```
 
 Também é possível baixar o ZIP pelo botão **Code → Download ZIP** no GitHub e extraí-lo.
@@ -216,5 +218,3 @@ usabilidade com operadores.
 | Integrante | Atribuição |
 |---|---|
 | Bruno Silveira | Desenvolvimento do motor, da IHM e documentação |
-| _(nome)_ | _(atribuição)_ |
-| _(nome)_ | _(atribuição)_ |

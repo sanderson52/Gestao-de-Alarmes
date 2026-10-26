@@ -1,4 +1,4 @@
-# Gestão de Alarmes Industriais — versão P2 (COM8 · IUM/IHM)
+# AlarmFlow — Gestão de alarmes e IHM de alto desempenho (C-101) · versão P2
 
 Motor de processamento de alarmes em Python (sem dependências externas) e uma
 **IHM de demonstração antes/depois ligada ao motor**. Projeto acadêmico: os dados
