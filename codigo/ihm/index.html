@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IHM de Alarmes – Compressor C-101 (protótipo)</title>
+<style>
+  :root {
+    --bg: #2b2f33; --bar: #1d2023; --txt: #f2f2f2;
+    --b-bg: #e4e5e6; --b-panel: #f4f4f4; --b-line: #c3c6c9; --b-txt: #1b1d1f; --b-muted: #5b6168;
+    --p1: #b42318; --p2: #f08c00; --p3: #f2c94c; --p4: #2463a6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--txt); font: 15px/1.35 "Segoe UI", Arial, sans-serif; }
+  header { background: var(--bar); padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  .tagproto { font-size: 12px; background: #444a50; padding: 2px 8px; border-radius: 10px; color: #ddd; }
+  .clock { font: 600 20px Consolas, monospace; }
+  .narr { flex: 1 1 320px; color: #cfd4d9; font-size: 14px; }
+  button, select, input { font: inherit; font-size: 14px; }
+  .ctl button { background: #3d444b; color: #fff; border: 1px solid #59616a; border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+  .ctl button:hover { background: #4c545c; }
+  .ctl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .vis button.on { background: #e4e5e6; color: #111; }
+  main { display: grid; grid-template-columns: minmax(0, 0.62fr) minmax(0, 1.9fr); gap: 12px; padding: 12px; }
+  main.soA { grid-template-columns: 1fr; } main.soA #paneB { display: none; }
+  main.soB { grid-template-columns: 1fr; } main.soB #paneA { display: none; }
+  .ptitle { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 6px; }
+
+  /* ---------- CENÁRIO A: sem racionalização ---------- */
+  #paneA { background: #000; border: 2px solid #600; padding: 10px; min-height: 640px; display: flex; flex-direction: column; }
+  #paneA .ptitle { color: #ff8a8a; }
+  .a-banner { background: #f00; color: #ff0; font: 700 22px Consolas, monospace; text-align: center; padding: 6px; animation: piscaA .4s steps(2) infinite; }
+  .a-count { color: #ff0; font: 700 15px Consolas, monospace; margin: 6px 0; }
+  .a-vals { font: 13px Consolas, monospace; color: #0f0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 8px; margin-bottom: 6px; }
+  #aList { flex: 1; overflow-y: auto; font: 13px Consolas, monospace; color: #ff3030; max-height: 560px; }
+  #aList div:nth-child(odd) { color: #ffd000; }
+  #aList div:last-child { animation: piscaA .4s steps(2) infinite; }
+  @keyframes piscaA { 50% { opacity: .25; } }
+
+  /* ---------- CENÁRIO B: com gestão de alarmes ---------- */
+  #paneB { background: var(--b-bg); color: var(--b-txt); padding: 10px; border: 2px solid #9aa0a6; }
+  #paneB .ptitle { color: #33383d; }
+  .proc { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+  .pv { background: var(--b-panel); border: 1px solid var(--b-line); border-radius: 4px; padding: 6px 8px; min-height: 74px; }
+  .pv .eq { font-size: 11px; color: var(--b-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pv .tg { font-size: 12px; font-weight: 600; color: #3a3f44; }
+  .pv .vl { font: 600 20px Consolas, monospace; color: #3a3f44; }
+  .pv .lim { font-size: 11px; color: var(--b-muted); }
+  .pv.alm { border: 2px solid #1b1d1f; background: #fff; }
+  .pv.alm .vl { color: #000; }
+  .pv.bad { background: repeating-linear-gradient(45deg, #f4f4f4, #f4f4f4 6px, #d9dadb 6px, #d9dadb 12px); }
+  .pv.bad .vl { font-size: 14px; color: #000; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--b-panel); font-size: 13.5px; }
+  th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--b-muted); background: #dadcde; padding: 5px 6px; border-bottom: 1px solid var(--b-line); }
+  td { padding: 6px; border-bottom: 1px solid var(--b-line); vertical-align: top; }
+  tr.unack td:first-child { box-shadow: inset 5px 0 0 #1b1d1f; }
+  tr.sym td { background: #eceded; font-size: 12.5px; color: #33383d; }
+  tr.sym td.desc::before { content: "↳ "; color: var(--b-muted); }
+  .prio { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; font-size: 12px; padding: 2px 7px; border-radius: 3px; white-space: nowrap; }
+  .prio.CRITICAL { background: var(--p1); color: #fff; }
+  .prio.HIGH { background: var(--p2); color: #111; }
+  .prio.MEDIUM { background: var(--p3); color: #111; }
+  .prio.LOW { background: var(--p4); color: #fff; }
+  .st { font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+  .st.ATIVO_NAO_RECONHECIDO .dot { animation: piscaB 1s steps(2) infinite; }
+  @keyframes piscaB { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .a-banner, #aList div:last-child, .st .dot { animation: none !important; } }
+  .vlim { font-family: Consolas, monospace; white-space: nowrap; }
+  .acao { font-size: 12.5px; color: #24282c; max-width: 360px; }
+  main:not(.soB) .acao { font-size: 12px; max-width: 220px; }
+  main:not(.soB) td { padding: 5px 4px; }
+  .rel { font-size: 12px; color: var(--b-muted); margin-top: 3px; }
+  .ack { background: #1b1d1f; color: #fff; border: 0; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-weight: 600; white-space: nowrap; }
+  .ack:focus-visible { outline: 3px solid #2463a6; outline-offset: 2px; }
+  .vazio { padding: 14px; color: var(--b-muted); text-align: center; }
+  .rodape { display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-top: 10px; }
+  .box { background: var(--b-panel); border: 1px solid var(--b-line); border-radius: 4px; padding: 8px 10px; font-size: 12.5px; }
+  .box h3 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; color: var(--b-muted); letter-spacing: .04em; }
+  .box ul { margin: 0; padding-left: 16px; } .box li { margin: 2px 0; }
+  .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+  .kpis b { font: 700 16px Consolas, monospace; }
+  .oper { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .oper input { width: 130px; padding: 4px 6px; }
+  .legend { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; margin: 0 0 8px; align-items: center; }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } .proc { grid-template-columns: repeat(3, 1fr); } .rodape { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Compressor C-101 · Gestão de alarmes</h1>
+  <span class="tagproto">Protótipo acadêmico · dados simulados · motor Python real</span>
+  <span class="clock" id="clock">--:--:--</span>
+  <span class="narr" id="narr"></span>
+  <div class="ctl">
+    <button id="play">▶ Reproduzir</button>
+    <button id="step">+1 passo</button>
+    <button id="jump">⏭ Ir para o trip</button>
+    <select id="vel" aria-label="Velocidade"><option value="500">1×</option><option value="250" selected>2×</option><option value="100">5×</option></select>
+    <button id="reset">↺ Reiniciar</button>
+  </div>
+  <div class="ctl vis" role="group" aria-label="Visualização">
+    <button data-v="" class="on">A + B</button><button data-v="soA">Só A</button><button data-v="soB">Só B</button>
+  </div>
+</header>
+
+<main id="main">
+  <section id="paneA" aria-label="Cenário A sem racionalização">
+    <p class="ptitle">Cenário A — sem racionalização</p>
+    <div class="a-banner">!!! ALARME !!!</div>
+    <div class="a-count" id="aCount">0 ALARMES</div>
+    <div class="a-vals" id="aVals"></div>
+    <div id="aList"></div>
+  </section>
+
+  <section id="paneB" aria-label="Cenário B com gestão de alarmes">
+    <p class="ptitle">Cenário B — com gestão de alarmes (motor automacao.py)</p>
+    <div class="proc" id="proc"></div>
+    <div class="legend">
+      <span class="prio CRITICAL">◆ P1 CRÍTICA</span><span class="prio HIGH">▲ P2 ALTA</span>
+      <span class="prio MEDIUM">■ P3 MÉDIA</span><span class="prio LOW">● P4 BAIXA</span>
+      <span style="margin-left:auto" class="oper"><label for="op">Operador:</label><input id="op" value="Operador 1"></span>
+    </div>
+    <table>
+      <thead><tr><th>Prioridade</th><th>Hora</th><th>Equipamento / Tag</th><th>Descrição</th><th>Valor / Limite</th><th>Estado</th><th>Ação recomendada</th><th></th></tr></thead>
+      <tbody id="bList"></tbody>
+    </table>
+    <div class="rodape">
+      <div class="box"><h3>Registro de ações do operador</h3><ul id="opLog"><li>Nenhuma ação registrada.</li></ul></div>
+      <div class="box"><h3>Transparência do filtro (nada é apagado)</h3><div class="kpis" id="kpis"></div></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const PRIO = { CRITICAL: ["◆", "P1 CRÍTICA"], HIGH: ["▲", "P2 ALTA"], MEDIUM: ["■", "P3 MÉDIA"], LOW: ["●", "P4 BAIXA"], DIAGNOSTIC: ["○", "DIAG"] };
+const ESTADO = {
+  ATIVO_NAO_RECONHECIDO: "ATIVO · NÃO RECONHECIDO",
+  ATIVO_RECONHECIDO: "ATIVO · RECONHECIDO",
+  NORMALIZADO_NAO_RECONHECIDO: "NORMALIZADO · AGUARDA RECONHECIMENTO",
+};
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = v => v == null ? "—" : Number(v).toFixed(1);
+let timer = null;
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (r.ok) render(j);
+  return j;
+}
+
+function prioBadge(p) { const [i, t] = PRIO[p] || ["", p]; return `<span class="prio ${p}">${i} ${t}</span>`; }
+
+function linha(a, sym) {
+  const unack = a.state === "ATIVO_NAO_RECONHECIDO" || a.state === "NORMALIZADO_NAO_RECONHECIDO";
+  const orig = a.metadata && a.metadata.prioridade_original ? ` <span class="rel">(era ${PRIO[a.metadata.prioridade_original][1]})</span>` : "";
+  const rep = a.metadata && a.metadata.repeticoes ? `<div class="rel">repetiu ${a.metadata.repeticoes}× (mesma linha)</div>` : "";
+  const sint = a.metadata && a.metadata.sintomas ? `<div class="rel">${a.metadata.sintomas.length} alarme(s) relacionado(s) agrupado(s) abaixo</div>` : "";
+  const vl = a.tag.endsWith("__QUALIDADE") ? "sinal inválido" : `${fmt(a.value)} ${esc(a.unit)}<br><span class="rel">limite ${a.direction === "HI" ? "&gt;" : "&lt;"} ${a.setpoint} ${esc(a.unit)}</span>`;
+  return `<tr class="${unack ? "unack" : ""} ${sym ? "sym" : ""}">
+    <td>${prioBadge(a.priority)}${orig}</td>
+    <td class="vlim">${a.hora}</td>
+    <td><b>${esc(a.equipment)}</b><div class="rel">${esc(a.tag)}</div></td>
+    <td class="desc">${esc(a.description)}${sym ? `<div class="rel">consequência de ${esc(a.root_cause_tag)}</div>` : ""}${sint}${rep}</td>
+    <td class="vlim">${vl}</td>
+    <td><span class="st ${a.state}"><span class="dot">${unack ? "● " : "○ "}</span>${ESTADO[a.state] || a.state}</span></td>
+    <td class="acao">${esc(a.recommended_action)}</td>
+    <td>${unack ? `<button class="ack" data-tag="${esc(a.tag)}">Reconhecer</button>` : ""}</td>
+  </tr>`;
+}
+
+function render(s) {
+  document.getElementById("clock").textContent = s.relogio;
+  document.getElementById("narr").textContent = s.narracao;
+
+  // ----- A -----
+  document.getElementById("aCount").textContent = `${s.A.total} ALARMES NA LISTA`;
+  document.getElementById("aVals").innerHTML = s.processo.map(p => `<span>${p.sensor_id}=${fmt(p.qualidade_ok ? p.valor : 0)}</span>`).join("");
+  const al = document.getElementById("aList");
+  al.innerHTML = s.A.notificacoes.map(n => `<div>${n.hora} ${esc(n.texto)}</div>`).join("");
+  al.scrollTop = al.scrollHeight;
+
+  // ----- B: visão de processo -----
+  document.getElementById("proc").innerHTML = s.processo.map(p => {
+    const bad = !p.qualidade_ok, alm = p.prioridade_alarme && !bad;
+    const ind = p.prioridade_alarme ? prioBadge(p.prioridade_alarme) : "";
+    return `<div class="pv ${alm ? "alm" : ""} ${bad ? "bad" : ""}">
+      <div class="eq">${esc(p.equip)}</div><div class="tg">${p.sensor_id}</div>
+      <div class="vl">${bad ? "SINAL RUIM" : fmt(p.valor) + " <small>" + esc(p.unidade) + "</small>"}</div>
+      <div class="lim">lim ${p.dir === "HI" ? "&gt;" : "&lt;"} ${p.limite} ${ind}</div></div>`;
+  }).join("");
+
+  // ----- B: lista de alarmes (sintomas aninhados sob a causa-raiz) -----
+  const ativos = s.B.ativos, porTag = Object.fromEntries(ativos.map(a => [a.tag, a]));
+  let html = "";
+  for (const a of ativos) {
+    if (a.root_cause_tag) continue; // sintomas: sob a raiz ou no fim (raiz já encerrada)
+    html += linha(a, false);
+    for (const sTag of (a.metadata.sintomas || [])) if (porTag[sTag]) html += linha(porTag[sTag], true);
+  }
+  for (const a of ativos) if (a.root_cause_tag && !porTag[a.root_cause_tag]) html += linha(a, true);
+  document.getElementById("bList").innerHTML = html || `<tr><td colspan="8" class="vazio">Nenhum alarme ativo. Processo dentro dos limites configurados.</td></tr>`;
+
+  const ol = s.B.operador_log;
+  document.getElementById("opLog").innerHTML = ol.length ? ol.slice().reverse().map(e => `<li><b>${e.hora}</b> ${esc(e.operador)} reconheceu <b>${esc(e.tag)}</b> → ${esc(e.resultado)}</li>`).join("") : "<li>Nenhuma ação registrada.</li>";
+  const c = s.B.contadores;
+  document.getElementById("kpis").innerHTML = `
+    <span>Anunciados ao operador</span><b>${c.anunciados}</b>
+    <span>Sintomas agrupados (rebaixados)</span><b>${c.rebaixados_correlacao}</b>
+    <span>Repetições na mesma linha</span><b>${c.repeticoes_agrupadas}</b>
+    <span>Falhas de instrumento</span><b>${c.qualidade_ruim}</b>
+    <span>Inibidos por contexto (registrados)</span><b>${c.suprimidos_contexto}</b>
+    <span>Notificações no cenário A</span><b>${s.A.total}</b>`;
+
+  if (s.passo >= s.total && timer) togglePlay();
+}
+
+function togglePlay() {
+  const b = document.getElementById("play");
+  if (timer) { clearInterval(timer); timer = null; b.textContent = "▶ Reproduzir"; }
+  else { timer = setInterval(() => api("/api/avancar", { n: 1 }), Number(document.getElementById("vel").value)); b.textContent = "⏸ Pausar"; }
+}
+
+document.getElementById("play").onclick = togglePlay;
+document.getElementById("vel").onchange = () => { if (timer) { togglePlay(); togglePlay(); } };
+document.getElementById("step").onclick = () => api("/api/avancar", { n: 1 });
+document.getElementById("jump").onclick = () => api("/api/avancar", { ate_s: 88 });
+document.getElementById("reset").onclick = () => { if (timer) togglePlay(); api("/api/reiniciar", {}); };
+document.getElementById("bList").addEventListener("click", e => {
+  const t = e.target.closest(".ack");
+  if (t) api("/api/reconhecer", { tag: t.dataset.tag, operador: document.getElementById("op").value });
+});
+document.querySelectorAll(".vis button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".vis button").forEach(x => x.classList.remove("on")); b.classList.add("on");
+  document.getElementById("main").className = b.dataset.v;
+});
+api("/api/estado");
+</script>
+</body>
+</html>
